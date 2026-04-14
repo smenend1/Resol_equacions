@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MathEngine SuperSolver</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0070f3">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2344/2344132.png">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <style>
+        :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; }
+        body { font-family: -apple-system, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .tabs { display: flex; background: #fff; border-bottom: 1px solid #d2d2d7; flex-shrink: 0; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; }
+        .tab.active { color: var(--p); border-bottom: 3px solid var(--p); }
+        .layout { display: grid; grid-template-columns: 380px 1fr; flex: 1; overflow: hidden; }
+        @media (max-width: 900px) { .layout { grid-template-columns: 1fr; overflow-y: auto; } }
+        .sidebar { padding: 20px; overflow-y: auto; background: #fff; border-right: 1px solid #d2d2d7; }
+        .card { background: var(--s); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #d2d2d7; }
+        h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; }
+        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .step { border-left: 3px solid var(--p); padding-left: 12px; margin: 10px 0; font-size: 0.85rem; color: #444; }
+        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; }
+        #canvas-wrap { flex: 1; background: white; margin: 20px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 300px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="tabs">
+    <div id="t-func" class="tab active" onclick="switchTab('func')">Funcions</div>
+    <div id="t-eq" class="tab" onclick="switchTab('eq')">Equacions</div>
+    <div id="t-sys" class="tab" onclick="switchTab('sys')">Sistemes</div>
+</div>
+
+<div class="layout">
+    <div class="sidebar">
+        <div id="pane-func">
+            <h3>Anàlisi de Funció</h3>
+            <input type="text" id="func-in" value="x^2 - 4" placeholder="f(x)">
+            <button class="btn" onclick="solveFunc()">Dibuixar i Analitzar</button>
+        </div>
+
+        <div id="pane-eq" class="hidden">
+            <h3>Equació d'ESO</h3>
+            <input type="text" id="eq-in" value="2x + 5 = 11" placeholder="2x + 4 = 0">
+            <button class="btn" onclick="solveEq()">Trobar x</button>
+        </div>
+
+        <div id="pane-sys" class="hidden">
+            <h3>Sistema 2x2</h3>
+            <input type="text" id="sys-1" value="x + y = 5" placeholder="Eq 1">
+            <input type="text" id="sys-2" value="x - y = 1" placeholder="Eq 2" style="margin-top:10px;">
+            <button class="btn" onclick="solveSys()">Resoldre M. Gràfic</button>
+        </div>
+
+        <div id="output" class="hidden" style="margin-top:20px;">
+            <div class="card">
+                <h3>Solució</h3>
+                <div id="res-val" class="math"></div>
+            </div>
+            <div class="card">
+                <h3>Procediment</h3>
+                <div id="res-steps"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-wrap">
+        <canvas id="mainChart"></canvas>
+    </div>
+</div>
+
+<script>
+    let chart = null;
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('t-' + tab).classList.add('active');
+        ['pane-func', 'pane-eq', 'pane-sys'].forEach(p => document.getElementById(p).classList.add('hidden'));
+        document.getElementById('pane-' + tab).classList.remove('hidden');
+    }
+
+    function solveFunc() {
+        const expr = document.getElementById('func-in').value;
+        render(expr);
+        document.getElementById('output').classList.remove('hidden');
+        document.getElementById('res-val').innerText = "f(x) = " + expr;
+        document.getElementById('res-steps').innerHTML = "<div class='step'>S'ha generat la representació gràfica de la funció en el domini visible.</div>";
+    }
+
+    function solveEq() {
+        const raw = document.getElementById('eq-in').value;
+        const parts = raw.split('=');
+        if(parts.length !== 2) return alert("Posa un '=' a l'equació");
+        const eq = `(${parts[0]}) - (${parts[1]})`;
+        render(eq);
+        document.getElementById('output').classList.remove('hidden');
+        document.getElementById('res-val').innerText = "Càlcul realitzat";
+        document.getElementById('res-steps').innerHTML = "<div class='step'>L'equació s'ha transformat per trobar el punt on f(x)=0 (intersecció amb l'eix X).</div>";
+    }
+
+    function solveSys() {
+        const e1 = document.getElementById('sys-1').value.replace('y','x'); // Simplificat per demo visual
+        const e2 = document.getElementById('sys-2').value.replace('y','x');
+        renderMulti([e1, e2]);
+        document.getElementById('output').classList.remove('hidden');
+        document.getElementById('res-val').innerText = "Sistema representat";
+        document.getElementById('res-steps').innerHTML = "<div class='step'>La solució és el punt de tall entre les dues rectes.</div>";
+    }
+
+    function render(expr) { renderMulti([expr]); }
+
+    function renderMulti(exprs) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        const datasets = exprs.map((expr, i) => {
+            const f = math.compile(expr);
+            const points = [];
+            for (let x = -10; x <= 10; x += 0.5) {
+                try { points.push({x, y: f.evaluate({x})}); } catch(e){}
+            }
+            return {
+                data: points, borderColor: i===0 ? '#0070f3':'#f43f5e',
+                borderWidth: 3, pointRadius: 0, tension: 0.3
+            };
+        });
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'linear', position: 'center', min: -10, max: 10 },
+                    y: { type: 'linear', position: 'center', min: -10, max: 10 }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // REGISTRE DEL SERVICE WORKER
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+
+    window.onload = () => { solveFunc(); };
+</script>
+</body>
+</html>
