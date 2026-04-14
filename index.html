@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MathEngine SuperSolver</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0070f3">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
@@ -21,11 +20,9 @@
         h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; }
         input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; }
         .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; }
-        .step { border-left: 3px solid var(--p); padding-left: 12px; margin: 10px 0; font-size: 0.85rem; color: #444; }
-        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.2rem; }
-        #canvas-wrap { flex: 1; background: white; margin: 20px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
+        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; }
+        #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
         .hidden { display: none; }
-        .val-destacat { color: var(--acc); font-size: 1.3rem; }
     </style>
 </head>
 <body>
@@ -39,32 +36,28 @@
 <div class="layout">
     <div class="sidebar">
         <div id="pane-func">
-            <h3>Punts de Tall i Gràfica</h3>
-            <input type="text" id="func-in" value="x^2 - 4" placeholder="Ex: 2x - 6">
+            <h3>Funció f(x)</h3>
+            <input type="text" id="func-in" value="x^2 - 4x + 3">
             <button class="btn" onclick="solveFunc()">Calcula Talls</button>
         </div>
 
         <div id="pane-eq" class="hidden">
-            <h3>Resoldre per a X</h3>
-            <input type="text" id="eq-in" value="3x + 6 = 12" placeholder="Ex: x^2 - 5x + 6 = 0">
+            <h3>Equació (Igualada o no)</h3>
+            <input type="text" id="eq-in" value="3x + 6x^2 = 1">
             <button class="btn" onclick="solveEq()">Troba la Solució</button>
         </div>
 
         <div id="pane-sys" class="hidden">
-            <h3>Sistema de 2 Equacions</h3>
-            <input type="text" id="sys-1" value="x + y = 5" placeholder="Eq 1: x + y = 5">
-            <input type="text" id="sys-2" value="x - y = 1" placeholder="Eq 2: x - y = 1" style="margin-top:10px;">
-            <button class="btn" onclick="solveSys()">Intersecció Gràfica</button>
+            <h3>Sistema d'Equacions</h3>
+            <input type="text" id="sys-1" value="x + y = 3">
+            <input type="text" id="sys-2" value="2x - y = 1" style="margin-top:10px;">
+            <button class="btn" onclick="solveSys()">Resoldre Sistema</button>
         </div>
 
         <div id="output" class="hidden" style="margin-top:20px;">
             <div class="card">
                 <h3>Resultat Numèric</h3>
                 <div id="res-val" class="math"></div>
-            </div>
-            <div class="card">
-                <h3>Anàlisi Pas a Pas</h3>
-                <div id="res-steps"></div>
             </div>
         </div>
     </div>
@@ -85,95 +78,96 @@
         document.getElementById('output').classList.add('hidden');
     }
 
-    // --- MOTOR DE CÀLCUL DE TALLS ---
-    function findIntercepts(expr) {
-        let talls = [];
-        try {
-            const f = math.compile(expr);
-            // Tall Y
-            talls.push({x: 0, y: f.evaluate({x: 0}), type: 'Y'});
-            // Tall X (busquem arrels entre -10 i 10)
-            for (let x = -10; x <= 10; x += 0.01) {
-                if (Math.abs(f.evaluate({x})) < 0.02) {
-                    if (talls.length === 0 || Math.abs(talls[talls.length-1].x - x) > 0.5) {
-                        talls.push({x: Math.round(x*100)/100, y: 0, type: 'X'});
-                    }
-                }
-            }
-        } catch(e) {}
-        return talls;
+    // Aquesta funció "neteja" l'equació per poder-la dibuixar
+    function prepareExpr(raw) {
+        if (!raw.includes('=')) return raw;
+        let sides = raw.split('=');
+        return `(${sides[0]}) - (${sides[1]})`;
     }
 
     function solveFunc() {
         const expr = document.getElementById('func-in').value;
-        const talls = findIntercepts(expr);
-        let txt = talls.map(p => `Punt ${p.type}: (${p.x}, ${p.y})`).join("<br>");
-        
-        document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerHTML = txt || "No hi ha talls visibles";
-        document.getElementById('res-steps').innerHTML = "<div class='step'>Hem buscat on la línia creua els eixos 0 de la gràfica.</div>";
-        renderMulti([expr], talls);
+        const results = calculatePoints(expr);
+        displayResults(results.txt);
+        render(results.dataSets, results.talls);
     }
 
     function solveEq() {
         const raw = document.getElementById('eq-in').value;
-        const parts = raw.split('=');
-        let expr = parts.length === 2 ? `(${parts[0]}) - (${parts[1]})` : raw;
-        
-        const talls = findIntercepts(expr);
-        document.getElementById('output').classList.remove('hidden');
-        if (talls.filter(p => p.type==='X').length > 0) {
-            let solucions = talls.filter(p => p.type==='X').map(p => p.x).join(", ");
-            document.getElementById('res-val').innerHTML = `<span class="val-destacat">x = ${solucions}</span>`;
-            document.getElementById('res-steps').innerHTML = `<div class='step'>Hem igualat l'equació a zero i trobat el valor de la incògnita.</div>`;
-        } else {
-            document.getElementById('res-val').innerText = "Sense solució real";
-        }
-        renderMulti([expr], talls.filter(p => p.type==='X'));
+        const expr = prepareExpr(raw);
+        const results = calculatePoints(expr);
+        let solX = results.talls.filter(p => p.type === 'X').map(p => p.x).join(", ");
+        displayResults(solX ? `x = ${solX}` : "Sense solució real");
+        render(results.dataSets, results.talls.filter(p => p.type === 'X'));
     }
 
     function solveSys() {
-        // Resolució simplificada per a sistemes tipus ESO
-        const s1 = document.getElementById('sys-1').value;
-        const s2 = document.getElementById('sys-2').value;
+        const e1 = prepareExpr(document.getElementById('sys-1').value);
+        const e2 = prepareExpr(document.getElementById('sys-2').value);
         
-        // El motor de mathjs pot resoldre sistemes si estan ben formats
-        document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerHTML = "Busca la intersecció vermella";
-        document.getElementById('res-steps').innerHTML = "<div class='step'>La solució (x, y) és el punt on les dues rectes es creuen.</div>";
+        // Aquí fem un truc: per sistemes, busquem on e1 - e2 = 0
+        const diffExpr = `(${document.getElementById('sys-1').value.split('=')[0]}) - (${document.getElementById('sys-1').value.split('=')[1]}) - ((${document.getElementById('sys-2').value.split('=')[0]}) - (${document.getElementById('sys-2').value.split('=')[1]}))`;
         
-        // Intentem dibuixar-les (requereix format y = ...)
-        // Per simplicitat en aquesta versió, dibuixem l'escombrat
-        renderMulti([s1.split('=')[0], s2.split('=')[0]], []);
+        // Per dibuixar sistemes lineals x+y=3 -> y=3-x
+        const d1 = solveForY(document.getElementById('sys-1').value);
+        const d2 = solveForY(document.getElementById('sys-2').value);
+
+        displayResults("Solució: Intersecció de les rectes");
+        render([{expr: d1, color: '#0070f3'}, {expr: d2, color: '#acc'}], []);
     }
 
-    function renderMulti(exprs, talls) {
+    function solveForY(raw) {
+        // Truc ràpid per passar Ax + By = C a f(x) per dibuixar
+        try {
+            const eq = raw.replace('=', '==');
+            return raw.split('=')[1] + ' - (' + raw.split('=')[0].replace('y', '0') + ')';
+        } catch(e) { return "0"; }
+    }
+
+    function calculatePoints(expr) {
+        const f = math.compile(expr);
+        let talls = [];
+        let points = [];
+        
+        // Tall Y
+        try { talls.push({x: 0, y: Math.round(f.evaluate({x:0})*100)/100, type:'Y'}); } catch(e){}
+
+        for (let x = -10; x <= 10; x += 0.1) {
+            let y = f.evaluate({x});
+            points.push({x, y});
+            if (Math.abs(y) < 0.1) { // Detectar tall X
+                let preciseX = x;
+                // Refinar cerca del tall X
+                for(let r = x-0.1; r <= x+0.1; r+=0.01) {
+                    if(Math.abs(f.evaluate({x:r})) < Math.abs(f.evaluate({x:preciseX}))) preciseX = r;
+                }
+                preciseX = Math.round(preciseX * 100) / 100;
+                if (!talls.find(t => t.x === preciseX)) talls.push({x: preciseX, y: 0, type: 'X'});
+            }
+        }
+        
+        let txt = talls.map(p => `Punt ${p.type}: (${p.x}, ${p.y})`).join("<br>");
+        return { dataSets: [{expr, color:'#0070f3', points}], talls, txt };
+    }
+
+    function displayResults(val) {
+        document.getElementById('output').classList.remove('hidden');
+        document.getElementById('res-val').innerHTML = val;
+    }
+
+    function render(sets, talls) {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
-        
-        const datasets = exprs.map((expr, i) => {
-            try {
-                const f = math.compile(expr);
-                const points = [];
-                for (let x = -10; x <= 10; x += 0.2) {
-                    let y = f.evaluate({x});
-                    if (isFinite(y)) points.push({x, y});
-                }
-                return {
-                    data: points, borderColor: i===0 ? '#0070f3':'#f43f5e',
-                    borderWidth: 3, pointRadius: 0, tension: 0.3, fill: false
-                };
-            } catch(e) { return { data: [] }; }
-        });
 
-        // Dataset especial per als punts de tall (punts vermells amb text)
-        if (talls && talls.length > 0) {
+        let datasets = sets.map(s => ({
+            data: s.points || generatePoints(s.expr),
+            borderColor: s.color,
+            borderWidth: 3, pointRadius: 0, tension: 0.3, fill: false
+        }));
+
+        if (talls.length > 0) {
             datasets.push({
-                label: 'Talls',
-                data: talls,
-                pointBackgroundColor: '#f43f5e',
-                pointRadius: 6,
-                showLine: false
+                data: talls, pointBackgroundColor: '#f43f5e', pointRadius: 6, showLine: false
             });
         }
 
@@ -186,14 +180,20 @@
                     x: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#eee'} },
                     y: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#eee'} }
                 },
-                plugins: { 
-                    legend: { display: false }
-                }
+                plugins: { legend: { display: false } }
             }
         });
     }
 
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+    function generatePoints(expr) {
+        const f = math.compile(expr);
+        let p = [];
+        for(let x=-10; x<=10; x+=0.2) {
+            try { let y = f.evaluate({x}); if(isFinite(y)) p.push({x,y}); } catch(e){}
+        }
+        return p;
+    }
+
     window.onload = () => { solveFunc(); };
 </script>
 </body>
