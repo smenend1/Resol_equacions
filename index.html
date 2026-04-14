@@ -23,6 +23,7 @@
         .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; }
         #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
         .hidden { display: none; }
+        .sol-box { color: var(--acc); font-size: 1.2rem; border-left: 4px solid var(--acc); padding-left: 10px; }
     </style>
 </head>
 <body>
@@ -42,15 +43,15 @@
         </div>
 
         <div id="pane-eq" class="hidden">
-            <h3>Equació (Igualada o no)</h3>
-            <input type="text" id="eq-in" value="3x + 6x^2 = 1">
+            <h3>Equació</h3>
+            <input type="text" id="eq-in" value="3x + 6 = 12">
             <button class="btn" onclick="solveEq()">Troba la Solució</button>
         </div>
 
         <div id="pane-sys" class="hidden">
-            <h3>Sistema d'Equacions</h3>
-            <input type="text" id="sys-1" value="x + y = 3">
-            <input type="text" id="sys-2" value="2x - y = 1" style="margin-top:10px;">
+            <h3>Sistema (Mètode Gràfic)</h3>
+            <input type="text" id="sys-1" value="2x + y = 5" placeholder="Ex: 2x + y = 5">
+            <input type="text" id="sys-2" value="x - y = 1" placeholder="Ex: x - y = 1" style="margin-top:10px;">
             <button class="btn" onclick="solveSys()">Resoldre Sistema</button>
         </div>
 
@@ -78,102 +79,108 @@
         document.getElementById('output').classList.add('hidden');
     }
 
-    // Aquesta funció "neteja" l'equació per poder-la dibuixar
-    function prepareExpr(raw) {
-        if (!raw.includes('=')) return raw;
-        let sides = raw.split('=');
-        return `(${sides[0]}) - (${sides[1]})`;
+    // --- FUNCIONS AUXILIARS ---
+    function aillarY(eq) {
+        try {
+            const parts = eq.split('=');
+            const esquerra = parts[0].trim();
+            const dreta = parts.length > 1 ? parts[1].trim() : "0";
+            // Truc algebraic: y = Dreta - (Esquerra sense la y)
+            // Això funciona per a sistemes lineals d'ESO tipus Ax + By = C
+            return `(${dreta} - (${esquerra.replace(/y/g, '0')}))`;
+        } catch(e) { return "0"; }
     }
 
     function solveFunc() {
         const expr = document.getElementById('func-in').value;
-        const results = calculatePoints(expr);
-        displayResults(results.txt);
-        render(results.dataSets, results.talls);
+        process(expr, 'func');
     }
 
     function solveEq() {
         const raw = document.getElementById('eq-in').value;
-        const expr = prepareExpr(raw);
-        const results = calculatePoints(expr);
-        let solX = results.talls.filter(p => p.type === 'X').map(p => p.x).join(", ");
-        displayResults(solX ? `x = ${solX}` : "Sense solució real");
-        render(results.dataSets, results.talls.filter(p => p.type === 'X'));
+        const expr = raw.includes('=') ? `(${raw.split('=')[0]}) - (${raw.split('=')[1]})` : raw;
+        process(expr, 'eq');
     }
 
     function solveSys() {
-        const e1 = prepareExpr(document.getElementById('sys-1').value);
-        const e2 = prepareExpr(document.getElementById('sys-2').value);
+        const eq1Raw = document.getElementById('sys-1').value;
+        const eq2Raw = document.getElementById('sys-2').value;
         
-        // Aquí fem un truc: per sistemes, busquem on e1 - e2 = 0
-        const diffExpr = `(${document.getElementById('sys-1').value.split('=')[0]}) - (${document.getElementById('sys-1').value.split('=')[1]}) - ((${document.getElementById('sys-2').value.split('=')[0]}) - (${document.getElementById('sys-2').value.split('=')[1]}))`;
+        const f1Str = aillarY(eq1Raw);
+        const f2Str = aillarY(eq2Raw);
         
-        // Per dibuixar sistemes lineals x+y=3 -> y=3-x
-        const d1 = solveForY(document.getElementById('sys-1').value);
-        const d2 = solveForY(document.getElementById('sys-2').value);
+        const f1 = math.compile(f1Str);
+        const f2 = math.compile(f2Str);
+        
+        let solucio = null;
+        let p1 = [], p2 = [];
 
-        displayResults("Solució: Intersecció de les rectes");
-        render([{expr: d1, color: '#0070f3'}, {expr: d2, color: '#acc'}], []);
+        for (let x = -10; x <= 10; x += 0.1) {
+            let y1 = f1.evaluate({x});
+            let y2 = f2.evaluate({x});
+            p1.push({x, y: y1});
+            p2.push({x, y: y2});
+            
+            if (Math.abs(y1 - y2) < 0.1 && !solucio) {
+                solucio = {x: Math.round(x), y: Math.round(y1)};
+            }
+        }
+
+        renderSystems(p1, p2, solucio);
+        document.getElementById('output').classList.remove('hidden');
+        document.getElementById('res-val').innerHTML = solucio 
+            ? `<div class="sol-box">Solució: x=${solucio.x}, y=${solucio.y}</div>`
+            : "No es tallen en aquest rang";
     }
 
-    function solveForY(raw) {
-        // Truc ràpid per passar Ax + By = C a f(x) per dibuixar
-        try {
-            const eq = raw.replace('=', '==');
-            return raw.split('=')[1] + ' - (' + raw.split('=')[0].replace('y', '0') + ')';
-        } catch(e) { return "0"; }
-    }
-
-    function calculatePoints(expr) {
+    function process(expr, mode) {
         const f = math.compile(expr);
-        let talls = [];
-        let points = [];
+        let points = [], talls = [];
         
-        // Tall Y
-        try { talls.push({x: 0, y: Math.round(f.evaluate({x:0})*100)/100, type:'Y'}); } catch(e){}
-
         for (let x = -10; x <= 10; x += 0.1) {
             let y = f.evaluate({x});
             points.push({x, y});
-            if (Math.abs(y) < 0.1) { // Detectar tall X
-                let preciseX = x;
-                // Refinar cerca del tall X
-                for(let r = x-0.1; r <= x+0.1; r+=0.01) {
-                    if(Math.abs(f.evaluate({x:r})) < Math.abs(f.evaluate({x:preciseX}))) preciseX = r;
-                }
-                preciseX = Math.round(preciseX * 100) / 100;
-                if (!talls.find(t => t.x === preciseX)) talls.push({x: preciseX, y: 0, type: 'X'});
+            if (Math.abs(y) < 0.1) {
+                let xVal = Math.round(x * 100) / 100;
+                if (!talls.find(t => t.x === xVal)) talls.push({x: xVal, y: 0});
             }
         }
-        
-        let txt = talls.map(p => `Punt ${p.type}: (${p.x}, ${p.y})`).join("<br>");
-        return { dataSets: [{expr, color:'#0070f3', points}], talls, txt };
-    }
 
-    function displayResults(val) {
+        renderSingle(points, talls);
         document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerHTML = val;
+        document.getElementById('res-val').innerText = mode === 'eq' 
+            ? "x = " + talls.map(t => t.x).join(", ")
+            : "Talls X: " + talls.map(t => t.x).join(", ");
     }
 
-    function render(sets, talls) {
+    function renderSingle(points, talls) {
+        draw([{data: points, borderColor: '#0070f3'}], talls);
+    }
+
+    function renderSystems(p1, p2, sol) {
+        draw([
+            {data: p1, borderColor: '#0070f3'},
+            {data: p2, borderColor: '#acc'}
+        ], sol ? [sol] : []);
+    }
+
+    function draw(datasets, points) {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
 
-        let datasets = sets.map(s => ({
-            data: s.points || generatePoints(s.expr),
-            borderColor: s.color,
-            borderWidth: 3, pointRadius: 0, tension: 0.3, fill: false
+        const ds = datasets.map(d => ({
+            data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.3, fill: false
         }));
 
-        if (talls.length > 0) {
-            datasets.push({
-                data: talls, pointBackgroundColor: '#f43f5e', pointRadius: 6, showLine: false
+        if (points.length > 0) {
+            ds.push({
+                data: points, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false
             });
         }
 
         chart = new Chart(ctx, {
             type: 'line',
-            data: { datasets },
+            data: { datasets: ds },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
@@ -183,15 +190,6 @@
                 plugins: { legend: { display: false } }
             }
         });
-    }
-
-    function generatePoints(expr) {
-        const f = math.compile(expr);
-        let p = [];
-        for(let x=-10; x<=10; x+=0.2) {
-            try { let y = f.evaluate({x}); if(isFinite(y)) p.push({x,y}); } catch(e){}
-        }
-        return p;
     }
 
     window.onload = () => { solveFunc(); };
