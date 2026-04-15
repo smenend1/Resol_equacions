@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MathEngine v3 - Correcció Final</title>
+    <title>MathEngine v4 - Ultra</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
@@ -26,9 +26,9 @@
 <body>
 
 <div class="tabs">
-    <div id="t-func" class="tab active" onclick="canviar('func')">Funcions</div>
-    <div id="t-eq" class="tab" onclick="canviar('eq')">Equacions</div>
-    <div id="t-sys" class="tab" onclick="canviar('sys')">Sistemes</div>
+    <div id="t-func" class="tab active" onclick="tab('func')">Funcions</div>
+    <div id="t-eq" class="tab" onclick="tab('eq')">Equacions</div>
+    <div id="t-sys" class="tab" onclick="tab('sys')">Sistemes</div>
 </div>
 
 <div class="layout">
@@ -36,12 +36,12 @@
         <div id="p-func">
             <h3>f(x)</h3>
             <input type="text" id="i-func" value="x^2 - 4x + 3">
-            <button class="btn" onclick="execFunc()">Analitzar</button>
+            <button class="btn" onclick="execFunc()">Dibuixar</button>
         </div>
         <div id="p-eq" class="hidden">
             <h3>Equació</h3>
             <input type="text" id="i-eq" value="3x + 6 = 12">
-            <button class="btn" onclick="execEq()">Trobar x</button>
+            <button class="btn" onclick="execEq()">Trobar X</button>
         </div>
         <div id="p-sys" class="hidden">
             <h3>Sistema (Mètode Gràfic)</h3>
@@ -53,30 +53,30 @@
             <div class="card"><div id="res" class="math"></div></div>
         </div>
     </div>
-    <div id="canvas-wrap"><canvas id="mainChart"></canvas></div>
+    <div id="canvas-wrap"><canvas id="chart"></canvas></div>
 </div>
 
 <script>
-    let chartInstance = null;
+    let miGrafico = null;
 
-    function canviar(id) {
+    function tab(id) {
         ['p-func', 'p-eq', 'p-sys'].forEach(p => document.getElementById(p).classList.add('hidden'));
         document.getElementById('p-' + id).classList.remove('hidden');
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById('t-' + id).classList.add('active');
         document.getElementById('out').classList.add('hidden');
-        if(chartInstance) { chartInstance.destroy(); chartInstance = null; }
+        if(miGrafico) { miGrafico.destroy(); miGrafico = null; }
     }
 
-    function draw(datasets, points) {
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if(chartInstance) chartInstance.destroy();
-        chartInstance = new Chart(ctx, {
+    function render(datasets, dots) {
+        const ctx = document.getElementById('chart').getContext('2d');
+        if(miGrafico) miGrafico.destroy();
+        miGrafico = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: datasets.map(d => ({
                     data: d.data, borderColor: d.color, borderWidth: 3, pointRadius: 0, tension: 0.1, fill: false
-                })).concat([{ data: points, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false }])
+                })).concat([{ data: dots, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false }])
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
@@ -89,67 +89,75 @@
         });
     }
 
+    // Aquesta funció "neteja" l'entrada perquè mathjs no s'emboliqui
+    function clean(str) {
+        return str.replace(/\s+/g, '') // treu espais
+                  .replace(/([0-9])([xy])/g, '$1*$2') // 3x -> 3*x
+                  .replace('=', '=='); // = -> ==
+    }
+
     function execSys() {
         try {
-            // Neteja profunda de caràcters invisibles i espais
-            const raw1 = document.getElementById('i-s1').value.replace(/\s+/g, '').replace('=', '==');
-            const raw2 = document.getElementById('i-s2').value.replace(/\s+/g, '').replace('=', '==');
+            const eq1 = clean(document.getElementById('i-s1').value);
+            const eq2 = clean(document.getElementById('i-s2').value);
             
-            const sol = math.solveSystem([raw1, raw2]);
-            const x = Math.round(sol[0] * 100) / 100;
-            const y = Math.round(sol[1] * 100) / 100;
+            // Solució amb mathjs
+            const sol = math.solveSystem([eq1, eq2]);
+            const xFinal = Math.round(sol[0] * 100) / 100;
+            const yFinal = Math.round(sol[1] * 100) / 100;
 
-            const l1 = [], l2 = [];
+            const d1 = [], d2 = [];
             for (let i = -10; i <= 10; i++) {
-                const r1 = math.solveSystem([raw1.replace(/x/g, `(${i})`), 'x==' + i]);
-                l1.push({x: i, y: r1[1]});
-                const r2 = math.solveSystem([raw2.replace(/x/g, `(${i})`), 'x==' + i]);
-                l2.push({x: i, y: r2[1]});
+                const r1 = math.solveSystem([eq1.replace(/x/g, `(${i})`), 'x==' + i]);
+                d1.push({x: i, y: r1[1]});
+                const r2 = math.solveSystem([eq2.replace(/x/g, `(${i})`), 'x==' + i]);
+                d2.push({x: i, y: r2[1]});
             }
 
             document.getElementById('out').classList.remove('hidden');
-            document.getElementById('res').innerHTML = `Intersecció: P(${x}, ${y})`;
-            draw([{data: l1, color: '#0070f3'}, {data: l2, color: '#acc'}], [{x, y}]);
+            document.getElementById('res').innerHTML = `Intersecció: P(${xFinal}, ${yFinal})`;
+            render([{data: d1, color: '#0070f3'}, {data: d2, color: '#acc'}], [{x: xFinal, y: yFinal}]);
         } catch(e) {
             document.getElementById('out').classList.remove('hidden');
-            document.getElementById('res').innerHTML = "Error de format en el sistema";
+            document.getElementById('res').innerHTML = "Error de càlcul";
+            console.log(e);
         }
     }
 
     function execFunc() {
-        const exp = document.getElementById('i-func').value;
+        const exp = document.getElementById('i-func').value.replace(/([0-9])x/g, '$1*x');
         const f = math.compile(exp);
         let pts = [], dots = [];
-        for(let x = -10; x <= 10; x += 0.1) {
+        for(let x = -10; x <= 10; x += 0.2) {
             let y = f.evaluate({x});
             pts.push({x, y});
-            if(Math.abs(y) < 0.2) dots.push({x: Math.round(x*100)/100, y: 0});
+            if(Math.abs(y) < 0.3) dots.push({x: Math.round(x*100)/100, y: Math.round(y*100)/100});
         }
         document.getElementById('out').classList.remove('hidden');
-        document.getElementById('res').innerHTML = "Funció analitzada";
-        draw([{data: pts, color: '#0070f3'}], dots);
+        document.getElementById('res').innerHTML = "Gràfica generada";
+        render([{data: pts, color: '#0070f3'}], dots);
     }
 
     function execEq() {
         const raw = document.getElementById('i-eq').value;
         const parts = raw.split('=');
-        const exp = `(${parts[0]}) - (${parts[1] || 0})`;
+        const exp = clean(`(${parts[0]}) - (${parts[1] || 0})`).replace('==', '');
         const f = math.compile(exp);
-        let pts = [], dots = [];
-        for(let x = -10; x <= 10; x += 0.1) {
-            let y = f.evaluate({x});
-            pts.push({x, y});
-            if(Math.abs(y) < 0.2) {
+        let dots = [];
+        for(let x = -10; x <= 10; x += 0.05) {
+            if(Math.abs(f.evaluate({x})) < 0.1) {
                 let valX = Math.round(x * 100) / 100;
-                if(!dots.find(d => d.x === valX)) dots.push({x: valX, y: 0});
+                if(!dots.find(d => Math.abs(d.x - valX) < 0.5)) dots.push({x: valX, y: 0});
             }
         }
         document.getElementById('out').classList.remove('hidden');
         document.getElementById('res').innerHTML = dots.length ? `x = ${dots.map(d => d.x).join(', ')}` : "Sense solució";
-        draw([{data: pts, color: '#0070f3'}], dots);
+        // Dibuixem la línia per veure on talla l'eix
+        let pts = []; for(let x=-10; x<=10; x+=0.5) pts.push({x, y: f.evaluate({x})});
+        render([{data: pts, color: '#0070f3'}], dots);
     }
 
-    window.onload = () => canviar('func');
+    window.onload = () => tab('func');
 </script>
 </body>
 </html>
