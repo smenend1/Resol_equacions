@@ -5,32 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MathEngine SuperSolver</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0070f3">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
-        :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; --blue-light: #accbee; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* Navegació */
         .tabs { display: flex; background: #fff; border-bottom: 1px solid #d2d2d7; flex-shrink: 0; z-index: 10; }
-        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; transition: 0.2s; }
-        .tab.active { color: var(--p); border-bottom: 3px solid var(--p); background: #f0f7ff; }
-        
+        .tab { flex: 1; padding: 16px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; transition: 0.2s; }
+        .tab.active { color: var(--p); border-bottom: 3px solid var(--p); }
+
+        /* Contingut Principal */
         .layout { display: grid; grid-template-columns: 380px 1fr; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .layout { grid-template-columns: 1fr; overflow-y: auto; } }
-        
-        .sidebar { padding: 20px; overflow-y: auto; background: #fff; border-right: 1px solid #d2d2d7; }
-        .card { background: var(--s); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #d2d2d7; }
+
+        /* Lateral */
+        .sidebar { padding: 20px; overflow-y: auto; background: #fff; border-right: 1px solid #d2d2d7; display: flex; flex-direction: column; gap: 15px; }
+        .card { background: var(--s); border-radius: 12px; padding: 15px; border: 1px solid #d2d2d7; }
         h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; outline: none; transition: border 0.2s; }
+        input:focus { border-color: var(--p); }
+        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.8; }
+
+        /* Resultats */
+        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; line-height: 1.5; }
+        .sol-box { color: var(--acc); border-left: 4px solid var(--acc); padding-left: 12px; margin-top: 5px; }
         
-        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; outline-color: var(--p); }
-        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; }
-        .btn:hover { opacity: 0.9; }
-        
-        .math { font-family: 'JetBrains Mono', 'Courier New', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; word-break: break-all; }
-        #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        /* Gràfica */
+        #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
         .hidden { display: none; }
-        .sol-box { color: var(--acc); font-size: 1.1rem; border-left: 4px solid var(--acc); padding-left: 12px; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -44,29 +49,27 @@
 <div class="layout">
     <div class="sidebar">
         <div id="pane-func">
-            <h3>Funció Analitzada f(x)</h3>
-            <input type="text" id="func-in" value="x^2 - 4x + 3" placeholder="Ex: x^2 - 5x + 6">
-            <button class="btn" onclick="solveFunc()">Analitza Gràficament</button>
+            <h3>Funció f(x)</h3>
+            <input type="text" id="func-in" value="x^2 - 4x + 3" placeholder="Ex: x^2 - 4">
+            <button class="btn" onclick="solveFunc()">Dibuixar i Analitzar</button>
         </div>
 
         <div id="pane-eq" class="hidden">
-            <h3>Resoldre Equació</h3>
-            <input type="text" id="eq-in" value="2x + 6 = 10" placeholder="Ex: x^2 = 16">
-            <button class="btn" onclick="solveEq()">Troba la x</button>
+            <h3>Equació d'ESO</h3>
+            <input type="text" id="eq-in" value="3x + 6 = 12" placeholder="Ex: x^2 + 5x + 6 = 0">
+            <button class="btn" onclick="solveEq()">Trobar x</button>
         </div>
 
         <div id="pane-sys" class="hidden">
             <h3>Sistema (Mètode Gràfic)</h3>
-            <div class="card">
-                <input type="text" id="sys-1" value="x + y = 5" placeholder="Equació 1: x + y = 5">
-                <input type="text" id="sys-2" value="x - y = 1" placeholder="Equació 2: x - y = 1" style="margin-top:10px;">
-            </div>
+            <input type="text" id="sys-1" value="3x + y = 2" placeholder="Eq 1: 3x + y = 2">
+            <input type="text" id="sys-2" value="2x - y = 3" placeholder="Eq 2: 2x - y = 3" style="margin-top:10px;">
             <button class="btn" onclick="solveSys()">Troba la Intersecció</button>
         </div>
 
-        <div id="output" class="hidden" style="margin-top:20px;">
+        <div id="output" class="hidden">
             <div class="card">
-                <h3>Resultats Detectats</h3>
+                <h3 id="res-title">Resultats Detectats</h3>
                 <div id="res-val" class="math"></div>
             </div>
         </div>
@@ -88,110 +91,103 @@
         document.getElementById('output').classList.add('hidden');
     }
 
-    // Aïllar Y de forma més robusta per a equacions lineals Ax + By = C
-    function aillarY(eq) {
-        try {
-            if (!eq.includes('=')) return eq;
-            const [esquerra, dreta] = eq.split('=');
-            // Transformem l'equació en una expressió on y = f(x)
-            // Aproximació: usem math.js per moure termes (simulat)
-            return `(${dreta.trim()} - (${esquerra.trim().replace(/y/g, '(0)')})) / 1`.replace(/\(0\)/g, '0');
-            // Nota: Per sistemes complexos on Y té coeficient, caldria un parser real, 
-            // però per a l'ESO aquesta lògica de resta de termes funciona bé.
-        } catch(e) { return "0"; }
-    }
-
+    // --- LÒGICA DE FUNCIONS I EQUACIONS ---
     function solveFunc() {
         const expr = document.getElementById('func-in').value;
-        process(expr, 'func');
+        const res = calculateGeneral(expr);
+        showResults("Talls amb els eixos:", res.txt);
+        renderData([{data: res.points, borderColor: '#0070f3'}], res.talls);
     }
 
     function solveEq() {
         const raw = document.getElementById('eq-in').value;
-        // Transformem "A = B" en "A - (B) = 0"
         const expr = raw.includes('=') ? `(${raw.split('=')[0]}) - (${raw.split('=')[1]})` : raw;
-        process(expr, 'eq');
+        const res = calculateGeneral(expr);
+        const solX = res.talls.filter(t => t.type === 'X').map(t => t.x).join(", ");
+        showResults("Solució de l'equació:", solX ? `x = ${solX}` : "Sense solucions reals");
+        renderData([{data: res.points, borderColor: '#0070f3'}], res.talls.filter(t => t.type === 'X'));
     }
 
+    function calculateGeneral(expr) {
+        const f = math.compile(expr);
+        let points = [], talls = [];
+        
+        // Tall Y
+        try { let y0 = f.evaluate({x:0}); talls.push({x:0, y: Math.round(y0*100)/100, type:'Y'}); } catch(e){}
+
+        // Tall X i Punts
+        for (let x = -10; x <= 10; x += 0.1) {
+            let y = f.evaluate({x});
+            points.push({x, y});
+            if (Math.abs(y) < 0.15) {
+                let preciseX = x; // Refinament
+                for(let r = x-0.1; r <= x+0.1; r+=0.01) {
+                    if(Math.abs(f.evaluate({x:r})) < Math.abs(f.evaluate({x:preciseX}))) preciseX = r;
+                }
+                preciseX = Math.round(preciseX * 100) / 100;
+                if (!talls.find(t => t.x === preciseX && t.type === 'X')) talls.push({x: preciseX, y: 0, type:'X'});
+            }
+        }
+        let txt = talls.map(p => `${p.type}: (${p.x}, ${p.y})`).join("<br>");
+        return { points, talls, txt };
+    }
+
+    // --- LÒGICA DE SISTEMES (EL MOTOR NOU) ---
     function solveSys() {
         const eq1Raw = document.getElementById('sys-1').value;
         const eq2Raw = document.getElementById('sys-2').value;
         
         try {
-            const f1 = math.compile(aillarY(eq1Raw));
-            const f2 = math.compile(aillarY(eq2Raw));
-            
-            let p1 = [], p2 = [], solucio = null;
+            // 1. Resolució algebraica exacta amb MathJS
+            const sol = math.solveSystem([eq1Raw.replace('=', '=='), eq2Raw.replace('=', '==')]);
+            const xSol = Math.round(sol[0] * 100) / 100;
+            const ySol = Math.round(sol[1] * 100) / 100;
 
-            for (let x = -10; x <= 10.1; x += 0.1) {
-                let y1 = f1.evaluate({x});
-                let y2 = f2.evaluate({x});
-                p1.push({x, y: y1});
-                p2.push({x, y: y2});
-                
-                // Detecció d'intersecció per proximitat o canvi de tendència
-                if (Math.abs(y1 - y2) < 0.15 && !solucio) {
-                    solucio = {x: Math.round(x * 10) / 10, y: Math.round(y1 * 10) / 10};
-                }
-            }
+            // 2. Generació de punts per a les dues rectes
+            const p1 = generateLinePoints(eq1Raw);
+            const p2 = generateLinePoints(eq2Raw);
 
-            renderSystems(p1, p2, solucio);
-            showRes(solucio ? `<div class="sol-box">Intersecció: P(${solucio.x}, ${solucio.y})</div>` : "No s'ha trobat tall en el rang [-10, 10]");
-        } catch(e) { alert("Error en el format del sistema"); }
+            showResults("Intersecció detectada:", `<div class="sol-box">P(${xSol}, ${ySol})</div>`);
+            renderData([
+                {data: p1, borderColor: '#0070f3'},
+                {data: p2, borderColor: '#acc'}
+            ], [{x: xSol, y: ySol}]);
+
+        } catch(e) {
+            showResults("Error de format", "Escriu les equacions com: 2x + y = 5");
+        }
     }
 
-    function process(expr, mode) {
-        try {
-            const f = math.compile(expr);
-            let points = [], talls = [];
-            
-            for (let x = -10; x <= 10; x += 0.1) {
-                let y = f.evaluate({x});
-                points.push({x, y});
-                
-                // Millora: Detectar tall si hi ha canvi de signe o és molt proper a 0
-                if (points.length > 1) {
-                    let prevY = points[points.length-2].y;
-                    if ((prevY * y <= 0) || Math.abs(y) < 0.05) {
-                        let xVal = Math.round(x * 10) / 10;
-                        if (!talls.find(t => Math.abs(t.x - xVal) < 0.2)) talls.push({x: xVal, y: 0});
-                    }
-                }
-            }
-
-            renderSingle(points, talls);
-            const label = mode === 'eq' ? "Solució x ≈ " : "Talls eix X: ";
-            showRes(talls.length > 0 ? label + talls.map(t => t.x).join(", ") : "Sense solucions reals");
-        } catch(e) { alert("Error en l'expressió"); }
+    function generateLinePoints(eq) {
+        let pts = [];
+        for (let x = -10; x <= 10; x += 0.5) {
+            try {
+                // Busquem la Y per a cada X de la recta
+                const res = math.solveSystem([eq.replace('=', '==').replace(/x/g, `(${x})`), 'x == ' + x]);
+                pts.push({x, y: res[1]});
+            } catch(e){}
+        }
+        return pts;
     }
 
-    function showRes(html) {
+    // --- MOTOR GRÀFIC ---
+    function showResults(title, val) {
         document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerHTML = html;
+        document.getElementById('res-title').innerText = title;
+        document.getElementById('res-val').innerHTML = val;
     }
 
-    function renderSingle(points, talls) {
-        draw([{data: points, borderColor: '#0070f3', label: 'f(x)'}], talls);
-    }
-
-    function renderSystems(p1, p2, sol) {
-        draw([
-            {data: p1, borderColor: '#0070f3', label: 'Eq 1'},
-            {data: p2, borderColor: '#accbee', label: 'Eq 2'}
-        ], sol ? [sol] : []);
-    }
-
-    function draw(datasets, points) {
+    function renderData(datasets, specialPoints) {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
 
         const ds = datasets.map(d => ({
-            label: d.label, data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.2, fill: false
+            data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.2, fill: false
         }));
 
-        if (points.length > 0) {
+        if (specialPoints && specialPoints.length > 0) {
             ds.push({
-                label: 'Punts', data: points, pointBackgroundColor: '#f43f5e', pointRadius: 6, showLine: false
+                data: specialPoints, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false
             });
         }
 
@@ -209,12 +205,9 @@
         });
     }
 
-    window.onload = () => { 
-        solveFunc(); 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(e => console.log(e));
-        }
-    };
+    // Iniciar PWA i primera vista
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+    window.onload = () => { solveFunc(); };
 </script>
 </body>
 </html>
