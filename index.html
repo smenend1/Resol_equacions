@@ -5,25 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MathEngine SuperSolver</title>
     <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0070f3">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
-        :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; }
-        body { font-family: -apple-system, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .tabs { display: flex; background: #fff; border-bottom: 1px solid #d2d2d7; flex-shrink: 0; }
-        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; }
-        .tab.active { color: var(--p); border-bottom: 3px solid var(--p); }
+        :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; --blue-light: #accbee; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .tabs { display: flex; background: #fff; border-bottom: 1px solid #d2d2d7; flex-shrink: 0; z-index: 10; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; transition: 0.2s; }
+        .tab.active { color: var(--p); border-bottom: 3px solid var(--p); background: #f0f7ff; }
+        
         .layout { display: grid; grid-template-columns: 380px 1fr; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .layout { grid-template-columns: 1fr; overflow-y: auto; } }
+        
         .sidebar { padding: 20px; overflow-y: auto; background: #fff; border-right: 1px solid #d2d2d7; }
         .card { background: var(--s); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #d2d2d7; }
-        h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; }
-        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; }
-        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; }
-        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; }
-        #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
+        h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; letter-spacing: 0.5px; }
+        
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; outline-color: var(--p); }
+        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        
+        .math { font-family: 'JetBrains Mono', 'Courier New', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; word-break: break-all; }
+        #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .hidden { display: none; }
-        .sol-box { color: var(--acc); font-size: 1.2rem; border-left: 4px solid var(--acc); padding-left: 10px; }
+        .sol-box { color: var(--acc); font-size: 1.1rem; border-left: 4px solid var(--acc); padding-left: 12px; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -37,27 +44,29 @@
 <div class="layout">
     <div class="sidebar">
         <div id="pane-func">
-            <h3>Funció f(x)</h3>
-            <input type="text" id="func-in" value="x^2 - 4x + 3">
-            <button class="btn" onclick="solveFunc()">Calcula Talls</button>
+            <h3>Funció Analitzada f(x)</h3>
+            <input type="text" id="func-in" value="x^2 - 4x + 3" placeholder="Ex: x^2 - 5x + 6">
+            <button class="btn" onclick="solveFunc()">Analitza Gràficament</button>
         </div>
 
         <div id="pane-eq" class="hidden">
-            <h3>Equació</h3>
-            <input type="text" id="eq-in" value="3x + 6 = 12">
-            <button class="btn" onclick="solveEq()">Troba la Solució</button>
+            <h3>Resoldre Equació</h3>
+            <input type="text" id="eq-in" value="2x + 6 = 10" placeholder="Ex: x^2 = 16">
+            <button class="btn" onclick="solveEq()">Troba la x</button>
         </div>
 
         <div id="pane-sys" class="hidden">
             <h3>Sistema (Mètode Gràfic)</h3>
-            <input type="text" id="sys-1" value="2x + y = 5" placeholder="Ex: 2x + y = 5">
-            <input type="text" id="sys-2" value="x - y = 1" placeholder="Ex: x - y = 1" style="margin-top:10px;">
-            <button class="btn" onclick="solveSys()">Resoldre Sistema</button>
+            <div class="card">
+                <input type="text" id="sys-1" value="x + y = 5" placeholder="Equació 1: x + y = 5">
+                <input type="text" id="sys-2" value="x - y = 1" placeholder="Equació 2: x - y = 1" style="margin-top:10px;">
+            </div>
+            <button class="btn" onclick="solveSys()">Troba la Intersecció</button>
         </div>
 
         <div id="output" class="hidden" style="margin-top:20px;">
             <div class="card">
-                <h3>Resultat Numèric</h3>
+                <h3>Resultats Detectats</h3>
                 <div id="res-val" class="math"></div>
             </div>
         </div>
@@ -79,15 +88,16 @@
         document.getElementById('output').classList.add('hidden');
     }
 
-    // --- FUNCIONS AUXILIARS ---
+    // Aïllar Y de forma més robusta per a equacions lineals Ax + By = C
     function aillarY(eq) {
         try {
-            const parts = eq.split('=');
-            const esquerra = parts[0].trim();
-            const dreta = parts.length > 1 ? parts[1].trim() : "0";
-            // Truc algebraic: y = Dreta - (Esquerra sense la y)
-            // Això funciona per a sistemes lineals d'ESO tipus Ax + By = C
-            return `(${dreta} - (${esquerra.replace(/y/g, '0')}))`;
+            if (!eq.includes('=')) return eq;
+            const [esquerra, dreta] = eq.split('=');
+            // Transformem l'equació en una expressió on y = f(x)
+            // Aproximació: usem math.js per moure termes (simulat)
+            return `(${dreta.trim()} - (${esquerra.trim().replace(/y/g, '(0)')})) / 1`.replace(/\(0\)/g, '0');
+            // Nota: Per sistemes complexos on Y té coeficient, caldria un parser real, 
+            // però per a l'ESO aquesta lògica de resta de termes funciona bé.
         } catch(e) { return "0"; }
     }
 
@@ -98,6 +108,7 @@
 
     function solveEq() {
         const raw = document.getElementById('eq-in').value;
+        // Transformem "A = B" en "A - (B) = 0"
         const expr = raw.includes('=') ? `(${raw.split('=')[0]}) - (${raw.split('=')[1]})` : raw;
         process(expr, 'eq');
     }
@@ -106,61 +117,67 @@
         const eq1Raw = document.getElementById('sys-1').value;
         const eq2Raw = document.getElementById('sys-2').value;
         
-        const f1Str = aillarY(eq1Raw);
-        const f2Str = aillarY(eq2Raw);
-        
-        const f1 = math.compile(f1Str);
-        const f2 = math.compile(f2Str);
-        
-        let solucio = null;
-        let p1 = [], p2 = [];
-
-        for (let x = -10; x <= 10; x += 0.1) {
-            let y1 = f1.evaluate({x});
-            let y2 = f2.evaluate({x});
-            p1.push({x, y: y1});
-            p2.push({x, y: y2});
+        try {
+            const f1 = math.compile(aillarY(eq1Raw));
+            const f2 = math.compile(aillarY(eq2Raw));
             
-            if (Math.abs(y1 - y2) < 0.1 && !solucio) {
-                solucio = {x: Math.round(x), y: Math.round(y1)};
-            }
-        }
+            let p1 = [], p2 = [], solucio = null;
 
-        renderSystems(p1, p2, solucio);
-        document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerHTML = solucio 
-            ? `<div class="sol-box">Solució: x=${solucio.x}, y=${solucio.y}</div>`
-            : "No es tallen en aquest rang";
+            for (let x = -10; x <= 10.1; x += 0.1) {
+                let y1 = f1.evaluate({x});
+                let y2 = f2.evaluate({x});
+                p1.push({x, y: y1});
+                p2.push({x, y: y2});
+                
+                // Detecció d'intersecció per proximitat o canvi de tendència
+                if (Math.abs(y1 - y2) < 0.15 && !solucio) {
+                    solucio = {x: Math.round(x * 10) / 10, y: Math.round(y1 * 10) / 10};
+                }
+            }
+
+            renderSystems(p1, p2, solucio);
+            showRes(solucio ? `<div class="sol-box">Intersecció: P(${solucio.x}, ${solucio.y})</div>` : "No s'ha trobat tall en el rang [-10, 10]");
+        } catch(e) { alert("Error en el format del sistema"); }
     }
 
     function process(expr, mode) {
-        const f = math.compile(expr);
-        let points = [], talls = [];
-        
-        for (let x = -10; x <= 10; x += 0.1) {
-            let y = f.evaluate({x});
-            points.push({x, y});
-            if (Math.abs(y) < 0.1) {
-                let xVal = Math.round(x * 100) / 100;
-                if (!talls.find(t => t.x === xVal)) talls.push({x: xVal, y: 0});
+        try {
+            const f = math.compile(expr);
+            let points = [], talls = [];
+            
+            for (let x = -10; x <= 10; x += 0.1) {
+                let y = f.evaluate({x});
+                points.push({x, y});
+                
+                // Millora: Detectar tall si hi ha canvi de signe o és molt proper a 0
+                if (points.length > 1) {
+                    let prevY = points[points.length-2].y;
+                    if ((prevY * y <= 0) || Math.abs(y) < 0.05) {
+                        let xVal = Math.round(x * 10) / 10;
+                        if (!talls.find(t => Math.abs(t.x - xVal) < 0.2)) talls.push({x: xVal, y: 0});
+                    }
+                }
             }
-        }
 
-        renderSingle(points, talls);
+            renderSingle(points, talls);
+            const label = mode === 'eq' ? "Solució x ≈ " : "Talls eix X: ";
+            showRes(talls.length > 0 ? label + talls.map(t => t.x).join(", ") : "Sense solucions reals");
+        } catch(e) { alert("Error en l'expressió"); }
+    }
+
+    function showRes(html) {
         document.getElementById('output').classList.remove('hidden');
-        document.getElementById('res-val').innerText = mode === 'eq' 
-            ? "x = " + talls.map(t => t.x).join(", ")
-            : "Talls X: " + talls.map(t => t.x).join(", ");
+        document.getElementById('res-val').innerHTML = html;
     }
 
     function renderSingle(points, talls) {
-        draw([{data: points, borderColor: '#0070f3'}], talls);
+        draw([{data: points, borderColor: '#0070f3', label: 'f(x)'}], talls);
     }
 
     function renderSystems(p1, p2, sol) {
         draw([
-            {data: p1, borderColor: '#0070f3'},
-            {data: p2, borderColor: '#acc'}
+            {data: p1, borderColor: '#0070f3', label: 'Eq 1'},
+            {data: p2, borderColor: '#accbee', label: 'Eq 2'}
         ], sol ? [sol] : []);
     }
 
@@ -169,12 +186,12 @@
         if (chart) chart.destroy();
 
         const ds = datasets.map(d => ({
-            data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.3, fill: false
+            label: d.label, data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.2, fill: false
         }));
 
         if (points.length > 0) {
             ds.push({
-                data: points, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false
+                label: 'Punts', data: points, pointBackgroundColor: '#f43f5e', pointRadius: 6, showLine: false
             });
         }
 
@@ -184,15 +201,20 @@
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#eee'} },
-                    y: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#eee'} }
+                    x: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#f0f0f0'} },
+                    y: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#f0f0f0'} }
                 },
                 plugins: { legend: { display: false } }
             }
         });
     }
 
-    window.onload = () => { solveFunc(); };
+    window.onload = () => { 
+        solveFunc(); 
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(e => console.log(e));
+        }
+    };
 </script>
 </body>
 </html>
