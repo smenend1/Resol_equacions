@@ -9,31 +9,26 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <style>
         :root { --p: #0070f3; --s: #f5f5f7; --txt: #1d1d1f; --acc: #f43f5e; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--s); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         /* Navegació */
         .tabs { display: flex; background: #fff; border-bottom: 1px solid #d2d2d7; flex-shrink: 0; z-index: 10; }
-        .tab { flex: 1; padding: 16px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; transition: 0.2s; }
+        .tab { flex: 1; padding: 16px; text-align: center; cursor: pointer; font-weight: 600; color: #86868b; font-size: 0.9rem; }
         .tab.active { color: var(--p); border-bottom: 3px solid var(--p); }
 
-        /* Contingut Principal */
+        /* Disseny Principal */
         .layout { display: grid; grid-template-columns: 380px 1fr; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .layout { grid-template-columns: 1fr; overflow-y: auto; } }
 
-        /* Lateral */
         .sidebar { padding: 20px; overflow-y: auto; background: #fff; border-right: 1px solid #d2d2d7; display: flex; flex-direction: column; gap: 15px; }
         .card { background: var(--s); border-radius: 12px; padding: 15px; border: 1px solid #d2d2d7; }
-        h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; letter-spacing: 0.5px; }
-        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; outline: none; transition: border 0.2s; }
-        input:focus { border-color: var(--p); }
-        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 1rem; transition: opacity 0.2s; }
-        .btn:active { opacity: 0.8; }
-
-        /* Resultats */
-        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; line-height: 1.5; }
+        h3 { font-size: 0.7rem; text-transform: uppercase; color: #86868b; margin: 0 0 10px 0; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d2d2d7; margin-top: 5px; box-sizing: border-box; font-size: 1rem; outline: none; }
+        .btn { width: 100%; padding: 15px; background: var(--p); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        
+        .math { font-family: 'JetBrains Mono', monospace; font-weight: bold; color: var(--p); font-size: 1.1rem; }
         .sol-box { color: var(--acc); border-left: 4px solid var(--acc); padding-left: 12px; margin-top: 5px; }
         
-        /* Gràfica */
         #canvas-wrap { flex: 1; background: white; margin: 15px; border-radius: 15px; border: 1px solid #d2d2d7; position: relative; min-height: 350px; }
         .hidden { display: none; }
     </style>
@@ -50,26 +45,26 @@
     <div class="sidebar">
         <div id="pane-func">
             <h3>Funció f(x)</h3>
-            <input type="text" id="func-in" value="x^2 - 4x + 3" placeholder="Ex: x^2 - 4">
+            <input type="text" id="func-in" value="x^2 - 4x + 3">
             <button class="btn" onclick="solveFunc()">Dibuixar i Analitzar</button>
         </div>
 
         <div id="pane-eq" class="hidden">
             <h3>Equació d'ESO</h3>
-            <input type="text" id="eq-in" value="3x + 6 = 12" placeholder="Ex: x^2 + 5x + 6 = 0">
+            <input type="text" id="eq-in" value="3x + 6 = 12">
             <button class="btn" onclick="solveEq()">Trobar x</button>
         </div>
 
         <div id="pane-sys" class="hidden">
             <h3>Sistema (Mètode Gràfic)</h3>
-            <input type="text" id="sys-1" value="3x + y = 2" placeholder="Eq 1: 3x + y = 2">
-            <input type="text" id="sys-2" value="2x - y = 3" placeholder="Eq 2: 2x - y = 3" style="margin-top:10px;">
+            <input type="text" id="sys-1" value="3x + y = 2">
+            <input type="text" id="sys-2" value="2x - y = 3" style="margin-top:10px;">
             <button class="btn" onclick="solveSys()">Troba la Intersecció</button>
         </div>
 
         <div id="output" class="hidden">
             <div class="card">
-                <h3 id="res-title">Resultats Detectats</h3>
+                <h3 id="res-title">Resultats</h3>
                 <div id="res-val" class="math"></div>
             </div>
         </div>
@@ -84,14 +79,24 @@
     let chart = null;
 
     function switchTab(tab) {
+        // Canvi visual de pestanyes
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById('t-' + tab).classList.add('active');
         ['pane-func', 'pane-eq', 'pane-sys'].forEach(p => document.getElementById(p).classList.add('hidden'));
         document.getElementById('pane-' + tab).classList.remove('hidden');
         document.getElementById('output').classList.add('hidden');
+
+        // NETEJA FORÇADA: Esborrem la gràfica anterior en canviar de pestanya
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+        const canvas = document.getElementById('mainChart');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    // --- LÒGICA DE FUNCIONS I EQUACIONS ---
+    // --- LÒGICA DE FUNCIONS ---
     function solveFunc() {
         const expr = document.getElementById('func-in').value;
         const res = calculateGeneral(expr);
@@ -99,70 +104,63 @@
         renderData([{data: res.points, borderColor: '#0070f3'}], res.talls);
     }
 
+    // --- LÒGICA D'EQUACIONS ---
     function solveEq() {
         const raw = document.getElementById('eq-in').value;
         const expr = raw.includes('=') ? `(${raw.split('=')[0]}) - (${raw.split('=')[1]})` : raw;
         const res = calculateGeneral(expr);
         const solX = res.talls.filter(t => t.type === 'X').map(t => t.x).join(", ");
-        showResults("Solució de l'equació:", solX ? `x = ${solX}` : "Sense solucions reals");
+        showResults("Solució Troballa:", solX ? `x = ${solX}` : "Sense solucions");
         renderData([{data: res.points, borderColor: '#0070f3'}], res.talls.filter(t => t.type === 'X'));
     }
 
-    function calculateGeneral(expr) {
-        const f = math.compile(expr);
-        let points = [], talls = [];
-        
-        // Tall Y
-        try { let y0 = f.evaluate({x:0}); talls.push({x:0, y: Math.round(y0*100)/100, type:'Y'}); } catch(e){}
-
-        // Tall X i Punts
-        for (let x = -10; x <= 10; x += 0.1) {
-            let y = f.evaluate({x});
-            points.push({x, y});
-            if (Math.abs(y) < 0.15) {
-                let preciseX = x; // Refinament
-                for(let r = x-0.1; r <= x+0.1; r+=0.01) {
-                    if(Math.abs(f.evaluate({x:r})) < Math.abs(f.evaluate({x:preciseX}))) preciseX = r;
-                }
-                preciseX = Math.round(preciseX * 100) / 100;
-                if (!talls.find(t => t.x === preciseX && t.type === 'X')) talls.push({x: preciseX, y: 0, type:'X'});
-            }
-        }
-        let txt = talls.map(p => `${p.type}: (${p.x}, ${p.y})`).join("<br>");
-        return { points, talls, txt };
-    }
-
-    // --- LÒGICA DE SISTEMES (EL MOTOR NOU) ---
+    // --- LÒGICA DE SISTEMES (Càlcul exacte) ---
     function solveSys() {
         const eq1Raw = document.getElementById('sys-1').value;
         const eq2Raw = document.getElementById('sys-2').value;
         
         try {
-            // 1. Resolució algebraica exacta amb MathJS
             const sol = math.solveSystem([eq1Raw.replace('=', '=='), eq2Raw.replace('=', '==')]);
             const xSol = Math.round(sol[0] * 100) / 100;
             const ySol = Math.round(sol[1] * 100) / 100;
 
-            // 2. Generació de punts per a les dues rectes
-            const p1 = generateLinePoints(eq1Raw);
-            const p2 = generateLinePoints(eq2Raw);
+            const p1 = generateLine(eq1Raw);
+            const p2 = generateLine(eq2Raw);
 
             showResults("Intersecció detectada:", `<div class="sol-box">P(${xSol}, ${ySol})</div>`);
             renderData([
                 {data: p1, borderColor: '#0070f3'},
                 {data: p2, borderColor: '#acc'}
             ], [{x: xSol, y: ySol}]);
-
         } catch(e) {
-            showResults("Error de format", "Escriu les equacions com: 2x + y = 5");
+            showResults("Error", "Format incorrecte. Ex: 2x + y = 5");
         }
     }
 
-    function generateLinePoints(eq) {
+    // --- FUNCIONS DE SUPORT ---
+    function calculateGeneral(expr) {
+        const f = math.compile(expr);
+        let points = [], talls = [];
+        try { let y0 = f.evaluate({x:0}); talls.push({x:0, y: Math.round(y0*100)/100, type:'Y'}); } catch(e){}
+        for (let x = -10; x <= 10; x += 0.1) {
+            let y = f.evaluate({x});
+            points.push({x, y});
+            if (Math.abs(y) < 0.15) {
+                let px = x;
+                for(let r = x-0.1; r <= x+0.1; r+=0.01) {
+                    if(Math.abs(f.evaluate({x:r})) < Math.abs(f.evaluate({x:px}))) px = r;
+                }
+                px = Math.round(px * 100) / 100;
+                if (!talls.find(t => t.x === px && t.type === 'X')) talls.push({x: px, y: 0, type:'X'});
+            }
+        }
+        return { points, talls, txt: talls.map(p => `${p.type}: (${p.x}, ${p.y})`).join("<br>") };
+    }
+
+    function generateLine(eq) {
         let pts = [];
         for (let x = -10; x <= 10; x += 0.5) {
             try {
-                // Busquem la Y per a cada X de la recta
                 const res = math.solveSystem([eq.replace('=', '==').replace(/x/g, `(${x})`), 'x == ' + x]);
                 pts.push({x, y: res[1]});
             } catch(e){}
@@ -170,7 +168,6 @@
         return pts;
     }
 
-    // --- MOTOR GRÀFIC ---
     function showResults(title, val) {
         document.getElementById('output').classList.remove('hidden');
         document.getElementById('res-title').innerText = title;
@@ -181,32 +178,26 @@
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
 
-        const ds = datasets.map(d => ({
-            data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.2, fill: false
-        }));
-
-        if (specialPoints && specialPoints.length > 0) {
-            ds.push({
-                data: specialPoints, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false
-            });
-        }
-
         chart = new Chart(ctx, {
             type: 'line',
-            data: { datasets: ds },
+            data: {
+                datasets: datasets.map(d => ({
+                    data: d.data, borderColor: d.borderColor, borderWidth: 3, pointRadius: 0, tension: 0.1, fill: false
+                })).concat([{
+                    data: specialPoints, pointBackgroundColor: '#f43f5e', pointRadius: 7, showLine: false
+                }])
+            },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#f0f0f0'} },
-                    y: { type: 'linear', position: 'center', min: -10, max: 10, grid: {color: '#f0f0f0'} }
+                    x: { type: 'linear', position: 'center', min: -10, max: 10 },
+                    y: { type: 'linear', position: 'center', min: -10, max: 10 }
                 },
                 plugins: { legend: { display: false } }
             }
         });
     }
 
-    // Iniciar PWA i primera vista
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
     window.onload = () => { solveFunc(); };
 </script>
 </body>
